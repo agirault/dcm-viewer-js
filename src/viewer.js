@@ -1,4 +1,5 @@
 import '@kitware/vtk.js/Rendering/Profiles/Volume';
+import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
 import vtkInteractorStyleManipulator from '@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator';
@@ -6,6 +7,10 @@ import Manipulators from '@kitware/vtk.js/Interaction/Manipulators';
 import ITKHelper from '@kitware/vtk.js/Common/DataModel/ITKHelper';
 import vtkImageMapper from '@kitware/vtk.js/Rendering/Core/ImageMapper';
 import vtkImageSlice from '@kitware/vtk.js/Rendering/Core/ImageSlice';
+import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
+import AnnotatedCubePresets from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor/Presets';
+import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
+
 class Viewer {
   constructor(container) {
     const genericRenderWindow = vtkGenericRenderWindow.newInstance();
@@ -28,7 +33,22 @@ class Viewer {
     this.vtk.actor.setMapper(this.vtk.mapper);
 
     this.vtk.iStyle = vtkInteractorStyleManipulator.newInstance();
-    this.vtk.renderWindow.getInteractor().setInteractorStyle(this.vtk.iStyle);
+    const interactor = this.vtk.renderWindow.getInteractor()
+    interactor.setInteractorStyle(this.vtk.iStyle);
+
+    const cube = vtkAnnotatedCubeActor.newInstance();
+    AnnotatedCubePresets.applyPreset('lps', cube);
+    const orientationWidget = vtkOrientationMarkerWidget.newInstance({
+      actor: cube,
+      interactor: interactor,
+    });
+    orientationWidget.setEnabled(true);
+    orientationWidget.setViewportCorner(
+      vtkOrientationMarkerWidget.Corners.TOP_RIGHT
+    );
+    orientationWidget.setViewportSize(0.15);
+
+    this.vtk.renderWindow.render();
   }
 
   load(itkImageData) {
