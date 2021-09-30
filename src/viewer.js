@@ -10,6 +10,7 @@ import vtkImageSlice from '@kitware/vtk.js/Rendering/Core/ImageSlice';
 import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
 import AnnotatedCubePresets from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor/Presets';
 import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
+import vtkMath from '@kitware/vtk.js/Common/Core/Math';
 
 class Viewer {
   constructor(container) {
@@ -60,6 +61,39 @@ class Viewer {
 
     // Slice rendering
     this.vtk.renderer.addActor(this.vtk.actor);
+
+    // Setup camera
+    const d9 = data.getDirection();
+    const d3x3 = [
+      [d9[0], d9[3], d9[6]],
+      [d9[1], d9[4], d9[7]],
+      [d9[2], d9[5], d9[8]],
+    ];
+    let normal = [0, 0, 0];
+    let viewUp = [0, 0, 0];
+    switch (this.vtk.mapper.getSlicingMode()) {
+      case vtkImageMapper.SlicingMode.I:
+        normal = [-1, 0, 0]; // -I
+        viewUp = [0, 0, 1]; // +K
+        break;
+      case vtkImageMapper.SlicingMode.J:
+        normal = [0, -1, 0]; // -J
+        viewUp = [1, 0, 0]; // +I
+        break;
+      case vtkImageMapper.SlicingMode.K:
+        normal = [0, 0, -1]; // -K
+        viewUp = [0, 1, 0]; // +J
+        break;
+      default:
+    }
+    vtkMath.multiply3x3_vect3(d3x3, normal, normal);
+    vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
+    const camera = this.vtk.renderer.getActiveCamera();
+    this.vtk.renderer.resetCamera(); // To compute focal point
+    let position = camera.getFocalPoint();
+    position = position.map((e, i) => e - normal[i]); // offset along the slicing axis
+    camera.setPosition(...position);
+    camera.setViewUp(viewUp);
     this.vtk.renderer.resetCamera();
 
     // Initial windowing
@@ -70,9 +104,27 @@ class Viewer {
     this.vtk.actor.getProperty().setColorLevel(center);
 
     // Initial slice
+    let minSlice = 0;
+    let maxSlice = 0;
     const extent = data.getExtent();
-    const slice = Math.round((extent[4] + extent[5]) / 2);
-    this.vtk.mapper.setSlice(slice);
+    switch (this.vtk.mapper.getSlicingMode()) {
+      case vtkImageMapper.SlicingMode.I:
+        minSlice = extent[0];
+        maxSlice = extent[1];
+        break;
+      case vtkImageMapper.SlicingMode.J:
+        minSlice = extent[2];
+        maxSlice = extent[3];
+        break;
+      case vtkImageMapper.SlicingMode.K:
+        minSlice = extent[4];
+        maxSlice = extent[5];
+        break;
+      default:
+        break;
+    }
+    const midSlice = Math.round((minSlice + maxSlice) / 2);
+    this.vtk.mapper.setSlice(midSlice);
 
     // Add manipulators
     const mousePanning = Manipulators.vtkMouseCameraTrackballPanManipulator.newInstance({
@@ -110,7 +162,7 @@ class Viewer {
       scrollEnabled: true,
     });
     mouseSlicing.setScrollListener(
-      extent[4], extent[5], 1,
+      minSlice, maxSlice, 1,
       () => this.slice,
       (val) => { this.slice = val; },
     );
