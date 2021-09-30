@@ -1,0 +1,10 @@
+{
+  "name": "dcm-viewer-js",
+  "version": "0.1",
+  "description": "A lightweight javascript dicom viewer based on vtk.js and itk.js.",
+  "repository": "git@github.com:agirault/dcm-viewer-js.git",
+  "author": "Alexis Girault <alexis.girault@kitware.com>",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "private": false
+}
