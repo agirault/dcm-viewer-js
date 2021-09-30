@@ -39,17 +39,18 @@ class Viewer {
     const interactor = this.vtk.renderWindow.getInteractor()
     interactor.setInteractorStyle(this.vtk.iStyle);
 
-    const cube = vtkAnnotatedCubeActor.newInstance();
-    AnnotatedCubePresets.applyPreset('lps', cube);
-    const orientationWidget = vtkOrientationMarkerWidget.newInstance({
-      actor: cube,
+    const lpsCube = vtkAnnotatedCubeActor.newInstance();
+    AnnotatedCubePresets.applyPreset('lps', lpsCube);
+    this.vtk.lpsMarker = vtkOrientationMarkerWidget.newInstance({
+      actor: lpsCube,
       interactor: interactor,
     });
-    orientationWidget.setEnabled(true);
-    orientationWidget.setViewportCorner(
+    this.vtk.lpsMarker.setEnabled(true);
+    this.vtk.lpsMarker.setViewportCorner(
       vtkOrientationMarkerWidget.Corners.TOP_RIGHT
     );
-    orientationWidget.setViewportSize(0.15);
+    this.vtk.lpsMarker.setViewportSize(0.15);
+
     this.vtk.renderWindow.render();
   }
 
@@ -186,6 +187,8 @@ class Viewer {
     );
 
     // Render
+    this.vtk.lpsMarker.updateMarkerOrientation();
+    this.vtk.ijkMarker.updateMarkerOrientation();
     this.vtk.renderWindow.render();
   }
 
@@ -276,15 +279,15 @@ class Viewer {
     ijkCube.setZMinusFaceProperty({ text: '-K' });
     ijkCube.setUserMatrix(this.vtk.data.getIndexToWorld());
     ijkCube.setScale(this.vtk.data.getDimensions());
-    const ijkCubeWidget = vtkOrientationMarkerWidget.newInstance({
+    this.vtk.ijkMarker = vtkOrientationMarkerWidget.newInstance({
       actor: ijkCube,
       interactor: this.vtk.renderWindow.getInteractor(),
     });
-    ijkCubeWidget.setEnabled(true);
-    ijkCubeWidget.setViewportCorner(
+    this.vtk.ijkMarker.setEnabled(true);
+    this.vtk.ijkMarker.setViewportCorner(
       vtkOrientationMarkerWidget.Corners.BOTTOM_RIGHT
     );
-    ijkCubeWidget.setViewportSize(0.15);
+    this.vtk.ijkMarker.setViewportSize(0.15);
 
     // Slicing mode
     this.setSlicingMode(slicingMode)
