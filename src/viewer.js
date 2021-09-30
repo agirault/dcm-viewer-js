@@ -31,7 +31,6 @@ class Viewer {
     this.vtk.renderWindow.render();
 
     this.vtk.mapper = vtkImageMapper.newInstance();
-    this.vtk.mapper.setSlicingMode(vtkImageMapper.SlicingMode.K);
 
     this.vtk.actor = vtkImageSlice.newInstance();
     this.vtk.actor.setMapper(this.vtk.mapper);
@@ -51,19 +50,14 @@ class Viewer {
       vtkOrientationMarkerWidget.Corners.TOP_RIGHT
     );
     orientationWidget.setViewportSize(0.15);
-
     this.vtk.renderWindow.render();
   }
 
-  load(itkImageData) {
-    // Convert image data
-    const data = ITKHelper.convertItkToVtkImage(itkImageData);
 
-    // Slice representation
-    this.vtk.mapper.setInputData(data);
 
-    // Slice rendering
-    this.vtk.renderer.addActor(this.vtk.actor);
+  setSlicingMode(slicingMode) {
+    // Slicing direction
+    this.vtk.mapper.setSlicingMode(slicingMode);
 
     // Setup camera
     const threshold = Math.sqrt(0.5);
@@ -73,7 +67,7 @@ class Viewer {
         outVec[axis] = (val < -threshold) ? -1 : (val > threshold) ? 1 : 0;
       }
     }
-    const d9 = data.getDirection();
+    const d9 = this.vtk.data.getDirection();
     const d3x3 = [
       [d9[0], d9[3], d9[6]],
       [d9[1], d9[4], d9[7]],
@@ -87,19 +81,18 @@ class Viewer {
     let normal = [0, 0, 0];
     let viewUp = [0, 0, 0];
     // VTK is in LPS, therefore +X = L; -X = R; +Y = P; -Y = A; +Z = S; -Z = I
-    const sliceMode = this.vtk.mapper.getSlicingMode();
-    switch (sliceMode) {
+    switch (slicingMode) {
       case vtkImageMapper.SlicingMode.I:
         normal = [-1, 0, 0]; // -I
-        viewUp = [0, 0, 1]; // +K
+        viewUp = [0, 0, +1]; // +K
         break;
       case vtkImageMapper.SlicingMode.J:
         normal = [0, -1, 0]; // -J
-        viewUp = [1, 0, 0]; // +I
+        viewUp = [+1, 0, 0]; // +I
         break;
       case vtkImageMapper.SlicingMode.K:
         normal = [0, 0, -1]; // -K
-        viewUp = [0, 1, 0]; // +J
+        viewUp = [0, +1, 0]; // +J
         break;
       case vtkImageMapper.SlicingMode.X:
         // X = RL axis = sagittal
@@ -151,23 +144,16 @@ class Viewer {
     camera.setViewUp(viewUp);
     this.vtk.renderer.resetCamera();
 
-    // Initial windowing
-    const range = data.getPointData().getScalars().getRange();
-    const maxWidth = range[1] - range[0];
-    this.vtk.actor.getProperty().setColorWindow(maxWidth);
-    const center = Math.round((range[0] + range[1]) / 2);
-    this.vtk.actor.getProperty().setColorLevel(center);
-
     // Initial slice
     let minSlice;
     let maxSlice;
     let sliceStep;
     let axisIndex;
-    const extent = data.getExtent();
-    const bounds = data.getBounds();
-    const spacing = data.getSpacing();
-    const sliceModeLabel = 'IJKXYZ'[sliceMode];
-    switch (sliceMode) {
+    const extent = this.vtk.data.getExtent();
+    const bounds = this.vtk.data.getBounds();
+    const spacing = this.vtk.data.getSpacing();
+    const sliceModeLabel = 'IJKXYZ'[slicingMode];
+    switch (slicingMode) {
       case vtkImageMapper.SlicingMode.I:
       case vtkImageMapper.SlicingMode.J:
       case vtkImageMapper.SlicingMode.K:
@@ -191,6 +177,34 @@ class Viewer {
     let midSlice = (minSlice + maxSlice) / 2;
     midSlice = Math.round(midSlice / sliceStep) * sliceStep;
     this.vtk.mapper.setSlice(midSlice);
+
+    // Slicing bounds for manipulator
+    this.vtk.mouseSlicing.setScrollListener(
+      minSlice, maxSlice, sliceStep,
+      () => this.slice,
+      (val) => { this.slice = val; },
+    );
+
+    // Render
+    this.vtk.renderWindow.render();
+  }
+
+  load(itkImageData, slicingMode = vtkImageMapper.SlicingMode.J) {
+    // Convert image data
+    this.vtk.data = ITKHelper.convertItkToVtkImage(itkImageData);
+
+    // Slice representation
+    this.vtk.mapper.setInputData(this.vtk.data);
+
+    // Slice rendering
+    this.vtk.renderer.addActor(this.vtk.actor);
+
+    // Initial windowing
+    const range = this.vtk.data.getPointData().getScalars().getRange();
+    const maxWidth = range[1] - range[0];
+    this.vtk.actor.getProperty().setColorWindow(maxWidth);
+    const center = Math.round((range[0] + range[1]) / 2);
+    this.vtk.actor.getProperty().setColorLevel(center);
 
     // Add manipulators
     const mousePanning = Manipulators.vtkMouseCameraTrackballPanManipulator.newInstance({
@@ -224,24 +238,19 @@ class Viewer {
     );
     this.vtk.iStyle.addMouseManipulator(mouseWindowing);
 
-    const mouseSlicing = Manipulators.vtkMouseRangeManipulator.newInstance({
+    this.vtk.mouseSlicing = Manipulators.vtkMouseRangeManipulator.newInstance({
       scrollEnabled: true,
     });
-    mouseSlicing.setScrollListener(
-      minSlice, maxSlice, sliceStep,
-      () => this.slice,
-      (val) => { this.slice = val; },
-    );
-    this.vtk.iStyle.addMouseManipulator(mouseSlicing);
+    this.vtk.iStyle.addMouseManipulator(this.vtk.mouseSlicing);
 
     // Add bounding box
     const bb = vtkCubeSource.newInstance();
-    bb.setBounds(extent);
+    bb.setBounds(this.vtk.data.getExtent());
     const bbMapper = vtkMapper.newInstance();
     bbMapper.setInputData(bb.getOutputData());
     const bbActor = vtkActor.newInstance();
     bbActor.setMapper(bbMapper);
-    bbActor.setUserMatrix(data.getIndexToWorld())
+    bbActor.setUserMatrix(this.vtk.data.getIndexToWorld())
     bbActor.getProperty().setRepresentationToWireframe();
     bbActor.getProperty().setInterpolationToFlat();
     bbActor.getProperty().setColor(1, 0, 0);
@@ -265,8 +274,8 @@ class Viewer {
     ijkCube.setYMinusFaceProperty({ text: '-J' });
     ijkCube.setZPlusFaceProperty({ text: '+K' });
     ijkCube.setZMinusFaceProperty({ text: '-K' });
-    ijkCube.setUserMatrix(data.getIndexToWorld());
-    ijkCube.setScale(data.getDimensions());
+    ijkCube.setUserMatrix(this.vtk.data.getIndexToWorld());
+    ijkCube.setScale(this.vtk.data.getDimensions());
     const ijkCubeWidget = vtkOrientationMarkerWidget.newInstance({
       actor: ijkCube,
       interactor: this.vtk.renderWindow.getInteractor(),
@@ -277,8 +286,8 @@ class Viewer {
     );
     ijkCubeWidget.setViewportSize(0.15);
 
-    // Render
-    this.vtk.renderWindow.render();
+    // Slicing mode
+    this.setSlicingMode(slicingMode)
   }
 
   get windowWidth() {
