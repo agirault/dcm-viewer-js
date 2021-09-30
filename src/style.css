@@ -11,7 +11,7 @@ body {
   font: 11px system-ui;
 }
 
-input {
+.front {
   z-index: 1;
 }
 

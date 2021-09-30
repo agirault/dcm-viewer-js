@@ -12,10 +12,17 @@ fileInput.addEventListener('change', async (event) => {
   const { dataTransfer } = event;
   const files = event.target.files || dataTransfer.files;
 
+  fileInput.setAttribute("hidden", "");
+
   // Read series
-  const itkReader = await readImageDICOMFileSeries(files);
-  fileInput.remove();
+  const itkReader = await readImageDICOMFileSeries(files)
 
   // Load in viewer
-  viewer.load(itkReader.image);
+  const selector = document.getElementById('slicingModeSelector')
+  viewer.load(itkReader.image, parseInt(selector.value));
+
+  selector.removeAttribute("hidden");
+  selector.onchange = () => {
+    viewer.load(itkReader.image, parseInt(selector.value));
+  }
 });
