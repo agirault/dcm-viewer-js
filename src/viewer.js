@@ -66,11 +66,23 @@ class Viewer {
     this.vtk.renderer.addActor(this.vtk.actor);
 
     // Setup camera
+    const threshold = Math.sqrt(0.5);
+    function roundToUnitVector(inVec, outVec) {
+      for (let axis = 0; axis < inVec.length; ++axis) {
+        const val = inVec[axis];
+        outVec[axis] = (val < -threshold) ? -1 : (val > threshold) ? 1 : 0;
+      }
+    }
     const d9 = data.getDirection();
     const d3x3 = [
       [d9[0], d9[3], d9[6]],
       [d9[1], d9[4], d9[7]],
       [d9[2], d9[5], d9[8]],
+    ];
+    const d3x3_inv = [ // rotation: inverse = transpose
+      [d9[0], d9[1], d9[2]],
+      [d9[3], d9[4], d9[5]],
+      [d9[6], d9[7], d9[8]],
     ];
     let normal = [0, 0, 0];
     let viewUp = [0, 0, 0];
@@ -80,37 +92,57 @@ class Viewer {
       case vtkImageMapper.SlicingMode.I:
         normal = [-1, 0, 0]; // -I
         viewUp = [0, 0, 1]; // +K
-        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
-        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
       case vtkImageMapper.SlicingMode.J:
         normal = [0, -1, 0]; // -J
         viewUp = [1, 0, 0]; // +I
-        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
-        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
       case vtkImageMapper.SlicingMode.K:
         normal = [0, 0, -1]; // -K
         viewUp = [0, 1, 0]; // +J
-        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
-        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
       case vtkImageMapper.SlicingMode.X:
         // X = RL axis = sagittal
+        /* In a perfect sagittal scenario, we'd use the values below directly.
+         * Since XYZ slicing does not do reformat, we find the closest IJK
+         * axes instead to stay aligned with the slice representation
+         */
         normal = [-1, 0, 0]; // -X (Right)
         viewUp = [0, 0, +1]; // +Z (Superior)
+        vtkMath.multiply3x3_vect3(d3x3_inv, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3_inv, viewUp, viewUp);
+        roundToUnitVector(normal, normal)
+        roundToUnitVector(viewUp, viewUp)
         break;
       case vtkImageMapper.SlicingMode.Y:
         // Y = AP axis = coronal
+        /* In a perfect coronal scenario, we'd use the values below directly.
+         * Since XYZ slicing does not do reformat, we find the closest IJK
+         * axes instead to stay aligned with the slice representation
+         */
         normal = [0, +1, 0]; // +Y (Posterior)
         viewUp = [0, 0, +1]; // +Z (Superior)
+        vtkMath.multiply3x3_vect3(d3x3_inv, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3_inv, viewUp, viewUp);
+        roundToUnitVector(normal, normal)
+        roundToUnitVector(viewUp, viewUp)
         break;
       case vtkImageMapper.SlicingMode.Z:
         // Z = IS axis = axial
+        /* In a perfect axial scenario, we'd use the values below directly.
+         * Since XYZ slicing does not do reformat, we find the closest IJK
+         * axes instead to stay aligned with the slice representation
+         */
         normal = [0, 0, +1]; // +Z (Superior)
         viewUp = [0, -1, 0]; // -Y (Anterior)
+        vtkMath.multiply3x3_vect3(d3x3_inv, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3_inv, viewUp, viewUp);
+        roundToUnitVector(normal, normal)
+        roundToUnitVector(viewUp, viewUp)
         break;
     }
+    vtkMath.multiply3x3_vect3(d3x3, normal, normal);
+    vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
     const camera = this.vtk.renderer.getActiveCamera();
     this.vtk.renderer.resetCamera(); // To compute focal point
     let position = camera.getFocalPoint();
