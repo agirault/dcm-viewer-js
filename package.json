@@ -6,5 +6,15 @@
   "author": "Alexis Girault <alexis.girault@kitware.com>",
   "license": "Apache-2.0",
   "main": "src/index.js",
-  "private": false
+  "private": false,
+  "scripts": {
+    "build": "webpack --progress --mode=development",
+    "start": "webpack-dev-server --progress  --mode=development"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^9.0.1",
+    "webpack": "^5.55.1",
+    "webpack-cli": "^4.8.0",
+    "webpack-dev-server": "^4.3.0"
+  }
 }
