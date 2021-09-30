@@ -11,6 +11,9 @@
     "build": "webpack --progress --mode=development",
     "start": "webpack-dev-server --progress  --mode=development"
   },
+  "dependencies": {
+    "itk": "^14.1.1"
+  },
   "devDependencies": {
     "copy-webpack-plugin": "^9.0.1",
     "webpack": "^5.55.1",
