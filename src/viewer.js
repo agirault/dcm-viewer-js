@@ -71,23 +71,43 @@ class Viewer {
     ];
     let normal = [0, 0, 0];
     let viewUp = [0, 0, 0];
-    switch (this.vtk.mapper.getSlicingMode()) {
+    // VTK is in LPS, therefore +X = L; -X = R; +Y = P; -Y = A; +Z = S; -Z = I
+    const sliceMode = this.vtk.mapper.getSlicingMode();
+    switch (sliceMode) {
       case vtkImageMapper.SlicingMode.I:
         normal = [-1, 0, 0]; // -I
         viewUp = [0, 0, 1]; // +K
+        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
       case vtkImageMapper.SlicingMode.J:
         normal = [0, -1, 0]; // -J
         viewUp = [1, 0, 0]; // +I
+        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
       case vtkImageMapper.SlicingMode.K:
         normal = [0, 0, -1]; // -K
         viewUp = [0, 1, 0]; // +J
+        vtkMath.multiply3x3_vect3(d3x3, normal, normal);
+        vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
         break;
-      default:
+      case vtkImageMapper.SlicingMode.X:
+        // X = RL axis = sagittal
+        normal = [-1, 0, 0]; // -X (Right)
+        viewUp = [0, 0, +1]; // +Z (Superior)
+        break;
+      case vtkImageMapper.SlicingMode.Y:
+        // Y = AP axis = coronal
+        normal = [0, +1, 0]; // +Y (Posterior)
+        viewUp = [0, 0, +1]; // +Z (Superior)
+        break;
+      case vtkImageMapper.SlicingMode.Z:
+        // Z = IS axis = axial
+        normal = [0, 0, +1]; // +Z (Superior)
+        viewUp = [0, -1, 0]; // -Y (Anterior)
+        break;
     }
-    vtkMath.multiply3x3_vect3(d3x3, normal, normal);
-    vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
     const camera = this.vtk.renderer.getActiveCamera();
     this.vtk.renderer.resetCamera(); // To compute focal point
     let position = camera.getFocalPoint();
@@ -104,26 +124,37 @@ class Viewer {
     this.vtk.actor.getProperty().setColorLevel(center);
 
     // Initial slice
-    let minSlice = 0;
-    let maxSlice = 0;
+    let minSlice;
+    let maxSlice;
+    let sliceStep;
+    let axisIndex;
     const extent = data.getExtent();
-    switch (this.vtk.mapper.getSlicingMode()) {
+    const bounds = data.getBounds();
+    const spacing = data.getSpacing();
+    const sliceModeLabel = 'IJKXYZ'[sliceMode];
+    switch (sliceMode) {
       case vtkImageMapper.SlicingMode.I:
-        minSlice = extent[0];
-        maxSlice = extent[1];
-        break;
       case vtkImageMapper.SlicingMode.J:
-        minSlice = extent[2];
-        maxSlice = extent[3];
-        break;
       case vtkImageMapper.SlicingMode.K:
-        minSlice = extent[4];
-        maxSlice = extent[5];
+        axisIndex = 'IJK'.indexOf(sliceModeLabel);
+        minSlice = extent[axisIndex * 2];
+        maxSlice = extent[axisIndex * 2 + 1];
+        sliceStep = 1;
         break;
-      default:
+      case vtkImageMapper.SlicingMode.X:
+      case vtkImageMapper.SlicingMode.Y:
+      case vtkImageMapper.SlicingMode.Z:
+        {
+          axisIndex = 'XYZ'.indexOf(sliceModeLabel);
+          minSlice = bounds[axisIndex * 2];
+          maxSlice = bounds[axisIndex * 2 + 1];
+          const { ijkMode } = this.vtk.mapper.getClosestIJKAxis();
+          sliceStep = spacing[ijkMode];
+        }
         break;
     }
-    const midSlice = Math.round((minSlice + maxSlice) / 2);
+    let midSlice = (minSlice + maxSlice) / 2;
+    midSlice = Math.round(midSlice / sliceStep) * sliceStep;
     this.vtk.mapper.setSlice(midSlice);
 
     // Add manipulators
@@ -162,7 +193,7 @@ class Viewer {
       scrollEnabled: true,
     });
     mouseSlicing.setScrollListener(
-      minSlice, maxSlice, 1,
+      minSlice, maxSlice, sliceStep,
       () => this.slice,
       (val) => { this.slice = val; },
     );
