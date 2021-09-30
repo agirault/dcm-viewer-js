@@ -215,6 +215,36 @@ class Viewer {
     bbActor.getProperty().setColor(1, 0, 0);
     this.vtk.renderer.addActor(bbActor);
 
+    // Add IJK cube axes
+    const ijkCube = vtkAnnotatedCubeActor.newInstance();
+    ijkCube.setDefaultStyle({
+      fontStyle: 'bold',
+      fontFamily: 'Arial',
+      fontColor: 'black',
+      fontSizeScale: (res) => res / 2,
+      faceRotation: 0,
+      edgeThickness: 0.1,
+      edgeColor: 'black',
+      resolution: 400,
+    });
+    ijkCube.setXPlusFaceProperty({ text: '+I' });
+    ijkCube.setXMinusFaceProperty({ text: '-I' });
+    ijkCube.setYPlusFaceProperty({ text: '+J' });
+    ijkCube.setYMinusFaceProperty({ text: '-J' });
+    ijkCube.setZPlusFaceProperty({ text: '+K' });
+    ijkCube.setZMinusFaceProperty({ text: '-K' });
+    ijkCube.setUserMatrix(data.getIndexToWorld());
+    ijkCube.setScale(data.getDimensions());
+    const ijkCubeWidget = vtkOrientationMarkerWidget.newInstance({
+      actor: ijkCube,
+      interactor: this.vtk.renderWindow.getInteractor(),
+    });
+    ijkCubeWidget.setEnabled(true);
+    ijkCubeWidget.setViewportCorner(
+      vtkOrientationMarkerWidget.Corners.BOTTOM_RIGHT
+    );
+    ijkCubeWidget.setViewportSize(0.15);
+
     // Render
     this.vtk.renderWindow.render();
   }
