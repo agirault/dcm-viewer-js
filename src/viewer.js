@@ -11,6 +11,9 @@ import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeA
 import AnnotatedCubePresets from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor/Presets';
 import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
 import vtkMath from '@kitware/vtk.js/Common/Core/Math';
+import vtkCubeSource from '@kitware/vtk.js/Filters/Sources/CubeSource';
+import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 
 class Viewer {
   constructor(container) {
@@ -198,6 +201,19 @@ class Viewer {
       (val) => { this.slice = val; },
     );
     this.vtk.iStyle.addMouseManipulator(mouseSlicing);
+
+    // Add bounding box
+    const bb = vtkCubeSource.newInstance();
+    bb.setBounds(extent);
+    const bbMapper = vtkMapper.newInstance();
+    bbMapper.setInputData(bb.getOutputData());
+    const bbActor = vtkActor.newInstance();
+    bbActor.setMapper(bbMapper);
+    bbActor.setUserMatrix(data.getIndexToWorld())
+    bbActor.getProperty().setRepresentationToWireframe();
+    bbActor.getProperty().setInterpolationToFlat();
+    bbActor.getProperty().setColor(1, 0, 0);
+    this.vtk.renderer.addActor(bbActor);
 
     // Render
     this.vtk.renderWindow.render();
