@@ -15,8 +15,36 @@ import vtkCubeSource from '@kitware/vtk.js/Filters/Sources/CubeSource';
 import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 
+function screenAnatomyLabelAlong(vec) {
+  const threshold = Math.sqrt(0.5);
+  if (vtkMath.dot(vec, [1, 0, 0]) > threshold) return 'L'
+  if (vtkMath.dot(vec, [-1, 0, 0]) > threshold) return 'R'
+  if (vtkMath.dot(vec, [0, 1, 0]) > threshold) return 'P'
+  if (vtkMath.dot(vec, [0, -1, 0]) > threshold) return 'A'
+  if (vtkMath.dot(vec, [0, 0, 1]) > threshold) return 'S'
+  if (vtkMath.dot(vec, [0, 0, -1]) > threshold) return 'I'
+  throw 'Invalid vector';
+}
+
+function screenAnatomyLabelsForCamera(camera) {
+  let up = camera.getViewUp();
+  let down = up.map(val => -val);
+  let normal = camera.getDirectionOfProjection();
+  let right = [0, 0, 0];
+  vtkMath.cross(normal, up, right);
+  let left = right.map(val => -val);
+  return {
+    top: screenAnatomyLabelAlong(up),
+    bottom: screenAnatomyLabelAlong(down),
+    right: screenAnatomyLabelAlong(right),
+    left: screenAnatomyLabelAlong(left),
+  }
+}
+
 class Viewer {
-  constructor(container) {
+  constructor(container, anatomyLabels) {
+    this.anatomyLabels = anatomyLabels;
+
     const genericRenderWindow = vtkGenericRenderWindow.newInstance();
     genericRenderWindow.setContainer(container);
     genericRenderWindow.resize();
@@ -144,6 +172,14 @@ class Viewer {
     camera.setFocalPoint(...focalPoint);
     camera.setViewUp(viewUp);
     this.vtk.renderer.resetCamera(); // adjust position along normal + zoom (parallel scale)
+
+    // Setup anatomy labels
+    // Note: also update when you plan to rotate the camera
+    const labels = screenAnatomyLabelsForCamera(camera);
+    this.anatomyLabels.topLabel.innerHTML = labels.top;
+    this.anatomyLabels.bottomLabel.innerHTML = labels.bottom;
+    this.anatomyLabels.leftLabel.innerHTML = labels.left;
+    this.anatomyLabels.rightLabel.innerHTML = labels.right;
 
     // Initial slice
     let minSlice;

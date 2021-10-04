@@ -15,7 +15,46 @@ body {
   z-index: 1;
 }
 
-#viewer {
+.fill {
   position: absolute;
   left: 0; top: 0; right: 0; bottom: 0;
+}
+
+.fill label {
+  position: absolute;
+  color: white;
+  padding: 10px;
+}
+
+.top {
+  top: 0px;
+}
+
+.bottom {
+  bottom: 0px;
+}
+
+.left {
+  text-align: left;
+  left: 0px;
+}
+
+.right {
+  text-align: right;
+  right: 0px;
+}
+
+.hcenter {
+  text-align: center;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.vcenter {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#metaData {
+  pointer-events: none;
 }
