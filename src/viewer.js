@@ -138,12 +138,12 @@ class Viewer {
     vtkMath.multiply3x3_vect3(d3x3, normal, normal);
     vtkMath.multiply3x3_vect3(d3x3, viewUp, viewUp);
     const camera = this.vtk.renderer.getActiveCamera();
-    this.vtk.renderer.resetCamera(); // To compute focal point
-    let position = camera.getFocalPoint();
-    position = position.map((e, i) => e - normal[i]); // offset along the slicing axis
+    let focalPoint = this.vtk.data.getCenter();
+    let position = focalPoint.map((e, i) => e - normal[i]); // offset along the slicing axis
     camera.setPosition(...position);
+    camera.setFocalPoint(...focalPoint);
     camera.setViewUp(viewUp);
-    this.vtk.renderer.resetCamera();
+    this.vtk.renderer.resetCamera(); // adjust position along normal + zoom (parallel scale)
 
     // Initial slice
     let minSlice;
